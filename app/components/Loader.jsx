@@ -1,7 +1,7 @@
 import React from "react"
 import {Mountain} from "lucide-react"
 
-export default function Loader() {
+export default function loading() {
   return (
     <div className="fixed inset-0 bg-white z-50 flex items-center justify-center">
       <div className="text-center">

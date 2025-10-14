@@ -2,6 +2,7 @@
 import React, {useEffect, useState} from "react"
 import {Clock, Calendar, Share2, Bookmark, Heart, CircleDot, Dot} from "lucide-react"
 import {useParams} from "next/navigation"
+import Loader from "@/app/test/page"
 // import { useParams } from "next/navigation"
 
 // Navbar Component
@@ -103,7 +104,7 @@ export default function ArticlePage() {
   }, [id])
 
   if (error) return <p>{error}</p>
-  if (!article) return <p>Loading...</p>
+  if (!article) return <Loader/>
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -44,10 +44,10 @@ export default function BlogListPage() {
       .then(data => {
         if (!mounted) return
         if (data?.success) setBlog(data.data || [])
-        else setError(data?.error || "Failed to load")
+        // else setError(data?.error || "Failed to load")
       })
       .then(console.log())
-      .catch(err => mounted && setError(err.message || "Fetch error"))
+      // .catch(err => mounted && setError(err.message || "Fetch error"))
     // .finally(() => mounted && setLoading(false))
 
     return () => {
