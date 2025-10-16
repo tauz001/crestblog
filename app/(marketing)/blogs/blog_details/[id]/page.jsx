@@ -2,7 +2,7 @@
 import React, {useEffect, useState} from "react"
 import {Clock, Calendar, Share2, Bookmark, Heart, CircleDot, Dot} from "lucide-react"
 import {useParams} from "next/navigation"
-import Loader from "@/app/test/page"
+import Loader from "@/app/components/Loader"
 // import { useParams } from "next/navigation"
 
 // Navbar Component

@@ -1,6 +1,6 @@
 "use client"
 import React, {useState, useEffect} from "react"
-import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft, Menu} from "lucide-react"
+import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft, Menu, Trash} from "lucide-react"
 import {useParams, useRouter} from "next/navigation"
 import Link from "next/link"
 import Loader from "@/app/components/Loader"
@@ -15,6 +15,7 @@ export default function EditPage() {
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState("Technology")
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [summary, setSummary] = useState("")
   const [canAddContent, setCanAddContent] = useState(false)
@@ -23,44 +24,35 @@ export default function EditPage() {
   const [currentContent, setCurrentContent] = useState("")
   const [showContentForm, setShowContentForm] = useState(false)
   const [editingIndex, setEditingIndex] = useState(null)
+  const [article, setArticle] = useState(null)
+
+  const {id} = useParams()
 
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
-  // Hardcoded blog data
-  const hardcodedBlog = {
-    _id: "1",
-    title: "Getting Started with React: A Complete Beginner's Guide",
-    category: "Technology",
-    excerpt: "Learn the basics of React and start building modern web applications.",
-    sections: [
-      {
-        subHeading: "What is React?",
-        content: "React is a JavaScript library for building user interfaces, particularly single-page applications. It was developed by Facebook and has become one of the most popular front-end libraries in the world.\n\nReact allows developers to create reusable UI components, making it easier to manage complex applications.",
-      },
-      {
-        subHeading: "Why Choose React?",
-        content: "There are several compelling reasons to choose React for your next project. First, it has a gentle learning curve for those familiar with JavaScript. Second, the vast ecosystem and community support means you'll find solutions to almost any problem.",
-      },
-      {
-        subHeading: "Getting Started",
-        content: "To start building with React, you'll need Node.js installed on your computer. Once you have that set up, you can use Create React App, a tool that sets up a new React project with all the necessary configurations.",
-      },
-    ],
-  }
+  useEffect(() => {
+    if (!id) return
 
+    fetch(`/api/publish/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setArticle(data.data)
+        else setError(data.error)
+      })
+      .then(console.log)
+      .catch(err => setError(err.message))
+  }, [id])
   // Simulate loading and fetch blog
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Load hardcoded blog data
-      setTitle(hardcodedBlog.title)
-      setCategory(hardcodedBlog.category)
-      setSummary(hardcodedBlog.excerpt)
-      setSavedSections(hardcodedBlog.sections)
-      setCanAddContent(true)
-      setIsLoading(false)
-    }, 2000)
-    return () => clearTimeout(timer)
-  }, [])
+    if (!article) return // ✅ wait until article is fetched
+
+    setTitle(article.title || "")
+    setCategory(article.category || "Technology")
+    setSummary(article.summary || "")
+    setSavedSections(article.sections || [])
+    setCanAddContent(true)
+    setIsLoading(false)
+  }, [article]) // ✅ run when article changes
 
   // Enable content button after title is set
   const handleTitleChange = e => {
@@ -136,24 +128,61 @@ export default function EditPage() {
     }
 
     setIsUpdating(true)
+
     try {
-      // Simulate API call
-      console.log({
-        title,
-        category,
-        excerpt: summary,
-        sections: savedSections,
+      const res = await fetch(`/api/publish/${id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          title,
+          category,
+          summary,
+          savedSections,
+        }),
       })
 
-      setTimeout(() => {
-        alert("Blog updated successfully!")
-        setIsUpdating(false)
-        router.push(`/blog/1`)
-      }, 1500)
+      const data = await res.json()
+
+      if (data.success) {
+        alert("Post updated successfully ✅")
+        router.push("/blogs") // or wherever you want to redirect
+      } else {
+        alert("Update failed ❌: " + data.error)
+        setIsUpdating(false) // missing for failed update case
+      }
     } catch (err) {
       console.error("Update error", err)
       alert("Failed to update: " + (err.message || "server error"))
       setIsUpdating(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (isDeleting) return
+
+    const confirmDelete = confirm("Are you sure you want to delete this post?")
+    if (!confirmDelete) return
+
+    setIsDeleting(true)
+
+    try {
+      const res = await fetch(`/api/publish/${id}`, {
+        method: "DELETE",
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert("Post deleted successfully ✅")
+        router.push("/blogs") // Redirect to blog list
+      } else {
+        alert("Delete failed ❌: " + data.error)
+      }
+    } catch (err) {
+      console.error("Delete error:", err)
+      alert("Failed to delete: " + (err.message || "server error"))
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -182,6 +211,10 @@ export default function EditPage() {
               <button type="button" onClick={handleUpdate} disabled={isUpdating} aria-busy={isUpdating} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isUpdating ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
                 <Eye className="w-4 h-4" />
                 <span>{isUpdating ? "Updating..." : "Update"}</span>
+              </button>
+              <button type="button" onClick={handleDelete} disabled={isDeleting} aria-busy={isDeleting} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isDeleting ? "bg-red-400 text-white cursor-not-allowed opacity-70" : "bg-red-700 text-white hover:bg-red-800"}`}>
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? "Deleting..." : "Delete This Post"}</span>
               </button>
             </div>
           </div>
