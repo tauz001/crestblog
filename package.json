@@ -9,7 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated",
     "dotenv": "^17.2.3",
+    "firebase": "^12.4.0",
+    "firebase-tools": "^14.20.0",
     "lucide-react": "^0.545.0",
     "mongoose": "^8.19.1",
     "next": "15.5.4",

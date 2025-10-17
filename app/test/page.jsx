@@ -1,307 +1,147 @@
+// /context/AuthContext.js
+// This file contains the AuthProvider and useAuth hook.
+
 "use client"
-import React, {useState, useEffect} from "react"
-import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft, Menu} from "lucide-react"
-import {useParams, useRouter} from "next/navigation"
-import Link from "next/link"
-import Loader from "@/app/components/Loader"
+import React, {createContext, useContext, useState, useEffect, useMemo} from "react"
+import {onAuthStateChanged, signInWithCustomToken, signInAnonymously, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification} from "firebase/auth"
+// Import the initialized auth instance from your lib file
+import {auth} from "@/src/lib/firebase" // Use '@/lib/firebase' or '../../lib/firebase' depending on path
+import {ArcLoader} from "../components/Loader"
 
-// Navbar Component
+// --- 1. Context Setup ---
+const AuthContext = createContext()
 
-// Edit Page Component
-export default function EditPage() {
-  const params = useParams()
-  const router = useRouter()
-
-  const [title, setTitle] = useState("")
-  const [category, setCategory] = useState("Technology")
-  const [isUpdating, setIsUpdating] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [summary, setSummary] = useState("")
-  const [canAddContent, setCanAddContent] = useState(false)
-  const [savedSections, setSavedSections] = useState([])
-  const [currentSubHeading, setCurrentSubHeading] = useState("")
-  const [currentContent, setCurrentContent] = useState("")
-  const [showContentForm, setShowContentForm] = useState(false)
-  const [editingIndex, setEditingIndex] = useState(null)
-
-  const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
-
-  // Hardcoded blog data
-  const hardcodedBlog = {
-    _id: "1",
-    title: "Getting Started with React: A Complete Beginner's Guide",
-    category: "Technology",
-    excerpt: "Learn the basics of React and start building modern web applications.",
-    sections: [
-      {
-        subHeading: "What is React?",
-        content: "React is a JavaScript library for building user interfaces, particularly single-page applications. It was developed by Facebook and has become one of the most popular front-end libraries in the world.\n\nReact allows developers to create reusable UI components, making it easier to manage complex applications.",
-      },
-      {
-        subHeading: "Why Choose React?",
-        content: "There are several compelling reasons to choose React for your next project. First, it has a gentle learning curve for those familiar with JavaScript. Second, the vast ecosystem and community support means you'll find solutions to almost any problem.",
-      },
-      {
-        subHeading: "Getting Started",
-        content: "To start building with React, you'll need Node.js installed on your computer. Once you have that set up, you can use Create React App, a tool that sets up a new React project with all the necessary configurations.",
-      },
-    ],
+/**
+ * Custom hook to consume the authentication context.
+ */
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
   }
+  return context
+}
 
-  // Simulate loading and fetch blog
+// --- 2. Auth Provider Component ---
+export const AuthProvider = ({children}) => {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
+  // Tracks if the firebase auth instance is available
+  const isAuthAvailable = !!auth // Check if 'auth' from firebase.js is present
+
+  // 2.1. Initialize Auth State Listener
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Load hardcoded blog data
-      setTitle(hardcodedBlog.title)
-      setCategory(hardcodedBlog.category)
-      setSummary(hardcodedBlog.excerpt)
-      setSavedSections(hardcodedBlog.sections)
-      setCanAddContent(true)
-      setIsLoading(false)
-    }, 2000)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Enable content button after title is set
-  const handleTitleChange = e => {
-    setTitle(e.target.value)
-    if (e.target.value.trim()) {
-      setCanAddContent(true)
-    } else {
-      setCanAddContent(false)
-    }
-  }
-
-  // Add new content section
-  const handleAddContent = () => {
-    setShowContentForm(true)
-    setCurrentSubHeading("")
-    setCurrentContent("")
-    setEditingIndex(null)
-  }
-
-  // Save content section
-  const handleSaveSection = () => {
-    if (!currentSubHeading.trim() || !currentContent.trim()) {
-      alert("Please fill in both subheading and content")
-      return
+    if (!isAuthAvailable) {
+      console.error("Firebase Auth instance is not available. Check /lib/firebase.js")
+      setLoading(false)
+      setAuthReady(true)
+      return () => {}
     }
 
-    if (editingIndex !== null) {
-      // Update existing section
-      const updatedSections = [...savedSections]
-      updatedSections[editingIndex] = {
-        subHeading: currentSubHeading,
-        content: currentContent,
+    let unsubscribe = () => {}
+
+    const initializeAuth = async () => {
+      // Initial anonymous sign-in logic (as in your original file)
+      const initialAuthToken = typeof __initial_auth_token !== "undefined" ? __initial_auth_token : null
+
+      if (initialAuthToken) {
+        await signInWithCustomToken(auth, initialAuthToken).catch(err => {
+          console.error("Error signing in with custom token. Falling back to anonymous sign-in.", err)
+          signInAnonymously(auth).catch(err => console.error("Error signing in anonymously:", err))
+        })
+      } else {
+        await signInAnonymously(auth).catch(err => console.error("Error signing in anonymously:", err))
       }
-      setSavedSections(updatedSections)
-      setEditingIndex(null)
-    } else {
-      // Add new section
-      setSavedSections([
-        ...savedSections,
-        {
-          subHeading: currentSubHeading,
-          content: currentContent,
-        },
-      ])
+
+      // Setup Auth State Listener
+      unsubscribe = onAuthStateChanged(auth, user => {
+        setCurrentUser(user)
+        setLoading(false)
+        setAuthReady(true) // Initial state is set
+      })
     }
 
-    setCurrentSubHeading("")
-    setCurrentContent("")
-    setShowContentForm(false)
+    initializeAuth()
+
+    return () => unsubscribe() // Cleanup listener on unmount
+  }, [isAuthAvailable])
+
+  // 2.2. Auth Actions
+
+  const signup = async (email, password) => {
+    if (!auth) throw new Error("Authentication service is not ready.")
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+
+    // Send Verification Email
+    if (userCredential.user) {
+      await sendEmailVerification(userCredential.user)
+      console.log("Verification email sent to:", userCredential.user.email)
+    }
+    return userCredential
   }
 
-  // Edit section
-  const handleEditSection = index => {
-    setCurrentSubHeading(savedSections[index].subHeading)
-    setCurrentContent(savedSections[index].content)
-    setEditingIndex(index)
-    setShowContentForm(true)
+  const login = async (email, password) => {
+    if (!auth) throw new Error("Authentication service is not ready.")
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
+
+    if (userCredential.user && !userCredential.user.emailVerified) {
+      console.warn("User logged in but email is not verified. Check email inbox.")
+    }
+    return userCredential
   }
 
-  // Delete section
-  const handleDeleteSection = index => {
-    const updatedSections = savedSections.filter((_, i) => i !== index)
-    setSavedSections(updatedSections)
+  const logout = () => {
+    if (auth) {
+      return signOut(auth).catch(err => console.error("Error during sign out:", err))
+    }
+    console.warn("AUTH: Cannot log out, Auth instance is not initialized.")
+    return Promise.resolve()
   }
 
-  // Update blog
-  const handleUpdate = async () => {
-    if (isUpdating) return
-
-    if (!title || savedSections.length === 0) {
-      alert("Please add title and at least one content section")
+  const resendVerificationEmail = async () => {
+    if (!auth || !currentUser) throw new Error("Authentication service or user is not ready.")
+    if (currentUser.emailVerified) {
+      console.warn("Email is already verified.")
       return
     }
+    // Use the latest user object from the auth instance before sending
+    await auth.currentUser.reload()
+    await sendEmailVerification(auth.currentUser)
+    console.log("Verification email resent to:", auth.currentUser.email)
+  }
 
-    setIsUpdating(true)
-    try {
-      // Simulate API call
-      console.log({
-        title,
-        category,
-        excerpt: summary,
-        sections: savedSections,
-      })
+  // 2.3. Memoized context value
+  const value = useMemo(() => {
+    const userId = currentUser?.uid || auth?.currentUser?.uid || (authReady ? "not-logged-in" : null)
 
-      setTimeout(() => {
-        alert("Blog updated successfully!")
-        setIsUpdating(false)
-        router.push(`/blog/1`)
-      }, 1500)
-    } catch (err) {
-      console.error("Update error", err)
-      alert("Failed to update: " + (err.message || "server error"))
-      setIsUpdating(false)
+    return {
+      currentUser,
+      loading,
+      login,
+      logout,
+      signup,
+      resendVerificationEmail,
+      userId,
+      isAnonymous: currentUser?.isAnonymous || false,
     }
-  }
+  }, [currentUser, loading, authReady])
 
-  // Loading state
-  if (isLoading) {
-    return <Loader />
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          {/* Header Actions */}
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-4">
-              <button onClick={() => router.back()} className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-3xl font-bold text-gray-900">Edit Blog</h1>
-            </div>
-            <div className="flex space-x-3">
-              <button type="button" onClick={() => router.back()} className="flex items-center space-x-2 px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                <X className="w-4 h-4" />
-                <span>Cancel</span>
-              </button>
-              <button type="button" onClick={handleUpdate} disabled={isUpdating} aria-busy={isUpdating} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isUpdating ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
-                <Eye className="w-4 h-4" />
-                <span>{isUpdating ? "Updating..." : "Update"}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Title and Category Section */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Blog Title *</label>
-              <input type="text" value={title} onChange={handleTitleChange} placeholder="Enter your blog title..." className="w-full text-2xl font-bold text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-              <select value={category} onChange={e => setCategory(e.target.value)} className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none">
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Summary */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Summary (one line)</label>
-              <input type="text" value={summary} onChange={e => setSummary(e.target.value)} placeholder="Write a one-line summary of the blog..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
-            </div>
-          </div>
-
-          {/* Add Content Button */}
-          {canAddContent && (
-            <div className="mb-6">
-              <button onClick={handleAddContent} disabled={showContentForm} className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${showContentForm ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
-                <Plus className="w-5 h-5" />
-                <span>Add New Content Section</span>
-              </button>
-            </div>
-          )}
-
-          {/* Content Form */}
-          {showContentForm && (
-            <div className="bg-white rounded-lg shadow-lg border-2 border-emerald-500 p-6 mb-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">{editingIndex !== null ? "Edit Content Section" : "Add Content Section"}</h3>
-                <button
-                  onClick={() => {
-                    setShowContentForm(false)
-                    setEditingIndex(null)
-                    setCurrentSubHeading("")
-                    setCurrentContent("")
-                  }}
-                  className="text-gray-400 hover:text-gray-600">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sub Heading *</label>
-                  <input type="text" value={currentSubHeading} onChange={e => setCurrentSubHeading(e.target.value)} placeholder="Enter sub heading..." className="w-full text-xl font-semibold text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Content *</label>
-                  <textarea value={currentContent} onChange={e => setCurrentContent(e.target.value)} placeholder="Write your content here..." rows="10" className="w-full text-gray-700 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none" />
-                </div>
-
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowContentForm(false)
-                      setEditingIndex(null)
-                      setCurrentSubHeading("")
-                      setCurrentContent("")
-                    }}
-                    className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                    Cancel
-                  </button>
-                  <button onClick={handleSaveSection} className="flex items-center space-x-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-                    <Check className="w-4 h-4" />
-                    <span>Save Section</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Saved Sections Display */}
-          {savedSections.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Content Sections ({savedSections.length})</h2>
-              {savedSections.map((section, index) => (
-                <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-xl font-bold text-gray-900">{section.subHeading}</h3>
-                    <div className="flex space-x-2">
-                      <button onClick={() => handleEditSection(index)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-                        <Edit2 className="w-5 h-5" />
-                      </button>
-                      <button onClick={() => handleDeleteSection(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!canAddContent && (
-            <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-              <PenSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Start Editing Your Blog</h3>
-              <p className="text-gray-500">Enter a title and select a category to begin editing content</p>
-            </div>
-          )}
-        </div>
+  // Handle initialization failure state
+  if (!isAuthAvailable) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-red-50 p-4">
+        <p className="text-xl font-bold text-red-700">Authentication Not Configured</p>
+        <p className="mt-2 text-gray-600">Check your Firebase configuration in `/lib/firebase.js`.</p>
       </div>
-    </div>
-  )
+    )
+  }
+
+  // Show loading until auth state is determined
+  if (loading || !authReady) {
+    return <ArcLoader />
+  }
+
+  // Render children once ready
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
