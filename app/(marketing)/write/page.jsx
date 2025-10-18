@@ -1,6 +1,6 @@
 "use client"
 import React, {useState, useEffect} from "react"
-import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check} from "lucide-react"
+import {X, Eye, Plus, Edit2, Trash2, Check, AlertCircle} from "lucide-react"
 import {useRouter} from "next/navigation"
 import {useAuth} from "@/src/context/authContext"
 
@@ -20,11 +20,16 @@ export default function WritePage() {
 
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
-  // Redirect to login if not authenticated
+  // Redirect if not authenticated or email not verified
   useEffect(() => {
-    if (!loading && (!currentUser || currentUser.isAnonymous)) {
-      alert("Please login to write a blog post")
-      router.push("/login")
+    if (!loading) {
+      if (!currentUser || currentUser.isAnonymous) {
+        alert("Please login to write a blog post")
+        router.push("/login")
+      } else if (!currentUser.emailVerified) {
+        alert("Please verify your email before writing. Check your inbox for verification link.")
+        router.push("/")
+      }
     }
   }, [currentUser, loading, router])
 
@@ -40,8 +45,8 @@ export default function WritePage() {
     )
   }
 
-  // If not authenticated, show nothing (will redirect via useEffect)
-  if (!currentUser || currentUser.isAnonymous) {
+  // If not authenticated or not verified, show nothing (will redirect)
+  if (!currentUser || currentUser.isAnonymous || !currentUser.emailVerified) {
     return null
   }
 
@@ -117,7 +122,7 @@ export default function WritePage() {
           summary,
           sections: savedSections,
           tableOfContents: savedSections.map(s => s.subHeading),
-          author: currentUser.uid, // Add author ID
+          author: currentUser.uid,
         }),
       })
 
@@ -138,6 +143,17 @@ export default function WritePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
+          {/* Email Verification Notice */}
+          {currentUser && !currentUser.emailVerified && (
+            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">Email verification required</p>
+                <p className="text-sm text-yellow-700 mt-1">Please verify your email to publish posts.</p>
+              </div>
+            </div>
+          )}
+
           {/* Header Actions */}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Write Your Blog</h1>
@@ -251,15 +267,6 @@ export default function WritePage() {
                   <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!canAddContent && (
-            <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-              <PenSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Start Writing Your Blog</h3>
-              <p className="text-gray-500">Enter a title and select a category to begin adding content</p>
             </div>
           )}
         </div>
