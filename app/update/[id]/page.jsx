@@ -1,16 +1,14 @@
 "use client"
 import React, {useState, useEffect} from "react"
-import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft, Menu, Trash} from "lucide-react"
+import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft} from "lucide-react"
 import {useParams, useRouter} from "next/navigation"
-import Link from "next/link"
+import {useAuth} from "@/src/context/authContext"
 import Loader from "@/app/components/Loader"
 
-// Navbar Component
-
-// Edit Page Component
 export default function EditPage() {
-  const params = useParams()
+  const {currentUser, loading: authLoading} = useAuth()
   const router = useRouter()
+  const {id} = useParams()
 
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState("Technology")
@@ -25,26 +23,43 @@ export default function EditPage() {
   const [showContentForm, setShowContentForm] = useState(false)
   const [editingIndex, setEditingIndex] = useState(null)
   const [article, setArticle] = useState(null)
-
-  const {id} = useParams()
+  const [error, setError] = useState(null)
 
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
+  // Redirect if not authenticated
   useEffect(() => {
-    if (!id) return
+    if (!authLoading && (!currentUser || currentUser.isAnonymous)) {
+      alert("Please login to edit posts")
+      router.push("/login")
+    }
+  }, [currentUser, authLoading, router])
+
+  // Fetch the post
+  useEffect(() => {
+    if (!id || !currentUser || currentUser.isAnonymous) return
 
     fetch(`/api/publish/${id}`)
       .then(res => res.json())
       .then(data => {
-        if (data.success) setArticle(data.data)
-        else setError(data.error)
+        if (data.success) {
+          // Check if current user owns this post
+          if (data.data.author !== currentUser.uid) {
+            alert("You don't have permission to edit this post")
+            router.push("/")
+            return
+          }
+          setArticle(data.data)
+        } else {
+          setError(data.error)
+        }
       })
-      .then(console.log)
       .catch(err => setError(err.message))
-  }, [id])
-  // Simulate loading and fetch blog
+  }, [id, currentUser, router])
+
+  // Populate form when article loads
   useEffect(() => {
-    if (!article) return // ✅ wait until article is fetched
+    if (!article) return
 
     setTitle(article.title || "")
     setCategory(article.category || "Technology")
@@ -52,19 +67,13 @@ export default function EditPage() {
     setSavedSections(article.sections || [])
     setCanAddContent(true)
     setIsLoading(false)
-  }, [article]) // ✅ run when article changes
+  }, [article])
 
-  // Enable content button after title is set
   const handleTitleChange = e => {
     setTitle(e.target.value)
-    if (e.target.value.trim()) {
-      setCanAddContent(true)
-    } else {
-      setCanAddContent(false)
-    }
+    setCanAddContent(!!e.target.value.trim())
   }
 
-  // Add new content section
   const handleAddContent = () => {
     setShowContentForm(true)
     setCurrentSubHeading("")
@@ -72,7 +81,6 @@ export default function EditPage() {
     setEditingIndex(null)
   }
 
-  // Save content section
   const handleSaveSection = () => {
     if (!currentSubHeading.trim() || !currentContent.trim()) {
       alert("Please fill in both subheading and content")
@@ -80,7 +88,6 @@ export default function EditPage() {
     }
 
     if (editingIndex !== null) {
-      // Update existing section
       const updatedSections = [...savedSections]
       updatedSections[editingIndex] = {
         subHeading: currentSubHeading,
@@ -89,7 +96,6 @@ export default function EditPage() {
       setSavedSections(updatedSections)
       setEditingIndex(null)
     } else {
-      // Add new section
       setSavedSections([
         ...savedSections,
         {
@@ -104,7 +110,6 @@ export default function EditPage() {
     setShowContentForm(false)
   }
 
-  // Edit section
   const handleEditSection = index => {
     setCurrentSubHeading(savedSections[index].subHeading)
     setCurrentContent(savedSections[index].content)
@@ -112,13 +117,11 @@ export default function EditPage() {
     setShowContentForm(true)
   }
 
-  // Delete section
   const handleDeleteSection = index => {
     const updatedSections = savedSections.filter((_, i) => i !== index)
     setSavedSections(updatedSections)
   }
 
-  // Update blog
   const handleUpdate = async () => {
     if (isUpdating) return
 
@@ -137,7 +140,8 @@ export default function EditPage() {
           title,
           category,
           summary,
-          savedSections,
+          sections: savedSections,
+          tableOfContents: savedSections.map(s => s.subHeading),
         }),
       })
 
@@ -145,14 +149,14 @@ export default function EditPage() {
 
       if (data.success) {
         alert("Post updated successfully ✅")
-        router.push("/blogs") // or wherever you want to redirect
+        router.push(`/blogs/blog_details/${id}`)
       } else {
         alert("Update failed ❌: " + data.error)
-        setIsUpdating(false) // missing for failed update case
       }
     } catch (err) {
       console.error("Update error", err)
       alert("Failed to update: " + (err.message || "server error"))
+    } finally {
       setIsUpdating(false)
     }
   }
@@ -160,7 +164,7 @@ export default function EditPage() {
   const handleDelete = async () => {
     if (isDeleting) return
 
-    const confirmDelete = confirm("Are you sure you want to delete this post?")
+    const confirmDelete = confirm("Are you sure you want to delete this post? This action cannot be undone.")
     if (!confirmDelete) return
 
     setIsDeleting(true)
@@ -174,7 +178,7 @@ export default function EditPage() {
 
       if (data.success) {
         alert("Post deleted successfully ✅")
-        router.push("/blogs") // Redirect to blog list
+        router.push(`/profile/${currentUser.uid}`)
       } else {
         alert("Delete failed ❌: " + data.error)
       }
@@ -186,9 +190,27 @@ export default function EditPage() {
     }
   }
 
-  // Loading state
-  if (isLoading) {
+  // Show loading
+  if (authLoading || isLoading) {
     return <Loader />
+  }
+
+  // If not authenticated, show nothing (will redirect)
+  if (!currentUser || currentUser.isAnonymous) {
+    return null
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-xl mb-4">Error: {error}</p>
+          <button onClick={() => router.back()} className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+            Go Back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -208,13 +230,13 @@ export default function EditPage() {
                 <X className="w-4 h-4" />
                 <span>Cancel</span>
               </button>
-              <button type="button" onClick={handleUpdate} disabled={isUpdating} aria-busy={isUpdating} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isUpdating ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+              <button type="button" onClick={handleUpdate} disabled={isUpdating} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isUpdating ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
                 <Eye className="w-4 h-4" />
                 <span>{isUpdating ? "Updating..." : "Update"}</span>
               </button>
-              <button type="button" onClick={handleDelete} disabled={isDeleting} aria-busy={isDeleting} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isDeleting ? "bg-red-400 text-white cursor-not-allowed opacity-70" : "bg-red-700 text-white hover:bg-red-800"}`}>
+              <button type="button" onClick={handleDelete} disabled={isDeleting} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isDeleting ? "bg-red-400 text-white cursor-not-allowed opacity-70" : "bg-red-700 text-white hover:bg-red-800"}`}>
                 <Trash2 className="w-4 h-4" />
-                <span>{isDeleting ? "Deleting..." : "Delete This Post"}</span>
+                <span>{isDeleting ? "Deleting..." : "Delete"}</span>
               </button>
             </div>
           </div>
@@ -237,7 +259,6 @@ export default function EditPage() {
               </select>
             </div>
 
-            {/* Summary */}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Summary (one line)</label>
               <input type="text" value={summary} onChange={e => setSummary(e.target.value)} placeholder="Write a one-line summary of the blog..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />

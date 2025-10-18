@@ -1,115 +1,91 @@
 "use client"
-import React, {useState} from "react"
+import React, {useState, useEffect} from "react"
 import {Menu, X, PenSquare, Mountain, User, Settings, LogOut, Clock, Heart, Bookmark, Mail, MapPin, Calendar, FileText} from "lucide-react"
 import Link from "next/link"
+import {useParams, useRouter} from "next/navigation"
+import {useAuth} from "@/src/context/authContext"
 import MyPost from "./fragments/MyPost"
 import SavedPost from "./fragments/SavedPost"
 import LikedPost from "./fragments/LikedPost"
 
-// Profile Page Component
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("posts")
+  const {currentUser, loading} = useAuth()
+  const params = useParams()
+  const router = useRouter()
+  const [myPosts, setMyPosts] = useState([])
+  const [savedBlogs, setSavedBlogs] = useState([])
+  const [likedBlogs, setLikedBlogs] = useState([])
 
-  const userProfile = {
-    name: "John Doe",
-    email: "johndoe@example.com",
-    bio: "Passionate writer and tech enthusiast. Love sharing knowledge about web development and programming.",
-    location: "San Francisco, CA",
-    joinedDate: "January 2024",
-    postsCount: 12,
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && (!currentUser || currentUser.isAnonymous)) {
+      router.push("/login")
+    }
+  }, [currentUser, loading, router])
+
+  // Fetch user's posts
+  useEffect(() => {
+    if (!currentUser || currentUser.isAnonymous) return
+
+    let mounted = true
+    fetch("/api/publish")
+      .then(r => r.json())
+      .then(data => {
+        if (!mounted) return
+        if (data?.success) {
+          // Filter posts by current user (you'll need to add author field to posts)
+          const userPosts = data.data.filter(post => post.author === currentUser.uid) || []
+          setMyPosts(userPosts)
+        }
+      })
+      .catch(err => console.error("Fetch error:", err))
+
+    return () => {
+      mounted = false
+    }
+  }, [currentUser])
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    )
   }
 
-  const myPosts = [
-    {
-      id: 1,
-      title: "Getting Started with React",
-      excerpt: "Learn the basics of React and start building modern web applications.",
-      date: "Oct 3, 2025",
-      readTime: "5 min read",
-      category: "Technology",
-      views: "1.2k",
-    },
-    {
-      id: 2,
-      title: "Understanding JavaScript Async",
-      excerpt: "Master asynchronous programming in JavaScript with promises and async/await.",
-      date: "Oct 2, 2025",
-      readTime: "7 min read",
-      category: "Technology",
-      views: "856",
-    },
-    {
-      id: 3,
-      title: "Introduction to Node.js",
-      excerpt: "Build server-side applications with Node.js and Express framework.",
-      date: "Sep 30, 2025",
-      readTime: "8 min read",
-      category: "Technology",
-      views: "643",
-    },
-  ]
+  // If not authenticated, show nothing (will redirect via useEffect)
+  if (!currentUser || currentUser.isAnonymous) {
+    return null
+  }
 
-  const savedBlogs = [
-    {
-      id: 1,
-      title: "Getting Started with React",
-      author: "Jane Smith",
-      date: "Oct 3, 2025",
-      readTime: "5 min read",
-      category: "Technology",
-    },
-    {
-      id: 2,
-      title: "Web Design Principles",
-      author: "David Lee",
-      date: "Sep 27, 2025",
-      readTime: "7 min read",
-      category: "Design",
-    },
-    {
-      id: 3,
-      title: "Healthy Living Tips",
-      author: "Tom Brown",
-      date: "Sep 29, 2025",
-      readTime: "5 min read",
-      category: "Health",
-    },
-  ]
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (currentUser.displayName) {
+      return currentUser.displayName
+        .split(" ")
+        .map(n => n[0])
+        .join("")
+        .toUpperCase()
+    }
+    if (currentUser.email) {
+      return currentUser.email.substring(0, 2).toUpperCase()
+    }
+    return "U"
+  }
 
-  const likedBlogs = [
-    {
-      id: 1,
-      title: "Understanding JavaScript Async",
-      author: "Mike Johnson",
-      date: "Oct 2, 2025",
-      readTime: "7 min read",
-      category: "Technology",
-    },
-    {
-      id: 2,
-      title: "Travel Guide to Europe",
-      author: "Lisa Anderson",
-      date: "Sep 28, 2025",
-      readTime: "6 min read",
-      category: "Travel",
-    },
-    {
-      id: 3,
-      title: "Photography Basics",
-      author: "Alex Turner",
-      date: "Sep 25, 2025",
-      readTime: "6 min read",
-      category: "Lifestyle",
-    },
-    {
-      id: 4,
-      title: "The Art of Storytelling",
-      author: "Emma Davis",
-      date: "Oct 1, 2025",
-      readTime: "6 min read",
-      category: "Lifestyle",
-    },
-  ]
+  const userProfile = {
+    name: currentUser.displayName || "User",
+    email: currentUser.email || "user@example.com",
+    bio: "Passionate writer and tech enthusiast. Love sharing knowledge about web development and programming.",
+    location: "San Francisco, CA",
+    joinedDate: currentUser.metadata?.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleDateString("en-US", {month: "long", year: "numeric"}) : "Recently",
+    postsCount: myPosts.length,
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,12 +96,7 @@ export default function ProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               {/* Avatar */}
               <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-4xl font-bold text-emerald-700">
-                  {userProfile.name
-                    .split(" ")
-                    .map(n => n[0])
-                    .join("")}
-                </span>
+                <span className="text-4xl font-bold text-emerald-700">{getUserInitials()}</span>
               </div>
 
               {/* Profile Info */}
@@ -188,13 +159,8 @@ export default function ProfilePage() {
 
           {/* Content Area */}
           <div>
-            {/* My Posts */}
             {activeTab === "posts" && <MyPost />}
-
-            {/* Saved Blogs */}
             {activeTab === "saved" && <SavedPost />}
-
-            {/* Liked Blogs */}
             {activeTab === "liked" && <LikedPost />}
           </div>
         </div>

@@ -1,9 +1,12 @@
 "use client"
-import React, {useState} from "react"
+import React, {useState, useEffect} from "react"
 import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check} from "lucide-react"
+import {useRouter} from "next/navigation"
+import {useAuth} from "@/src/context/authContext"
 
-// Write Page Component
 export default function WritePage() {
+  const {currentUser, loading} = useAuth()
+  const router = useRouter()
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState("Technology")
   const [isPublishing, setIsPublishing] = useState(false)
@@ -17,17 +20,36 @@ export default function WritePage() {
 
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
-  // Enable content button after title and category are set
-  const handleTitleChange = e => {
-    setTitle(e.target.value)
-    if (e.target.value.trim()) {
-      setCanAddContent(true)
-    } else {
-      setCanAddContent(false)
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && (!currentUser || currentUser.isAnonymous)) {
+      alert("Please login to write a blog post")
+      router.push("/login")
     }
+  }, [currentUser, loading, router])
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
-  // Add new content section
+  // If not authenticated, show nothing (will redirect via useEffect)
+  if (!currentUser || currentUser.isAnonymous) {
+    return null
+  }
+
+  const handleTitleChange = e => {
+    setTitle(e.target.value)
+    setCanAddContent(!!e.target.value.trim())
+  }
+
   const handleAddContent = () => {
     setShowContentForm(true)
     setCurrentSubHeading("")
@@ -35,7 +57,6 @@ export default function WritePage() {
     setEditingIndex(null)
   }
 
-  // Save content section
   const handleSaveSection = () => {
     if (!currentSubHeading.trim() || !currentContent.trim()) {
       alert("Please fill in both subheading and content")
@@ -43,7 +64,6 @@ export default function WritePage() {
     }
 
     if (editingIndex !== null) {
-      // Update existing section
       const updatedSections = [...savedSections]
       updatedSections[editingIndex] = {
         subHeading: currentSubHeading,
@@ -52,7 +72,6 @@ export default function WritePage() {
       setSavedSections(updatedSections)
       setEditingIndex(null)
     } else {
-      // Add new section
       setSavedSections([
         ...savedSections,
         {
@@ -67,7 +86,6 @@ export default function WritePage() {
     setShowContentForm(false)
   }
 
-  // Edit section
   const handleEditSection = index => {
     setCurrentSubHeading(savedSections[index].subHeading)
     setCurrentContent(savedSections[index].content)
@@ -75,18 +93,12 @@ export default function WritePage() {
     setShowContentForm(true)
   }
 
-  // Delete section
   const handleDeleteSection = index => {
     const updatedSections = savedSections.filter((_, i) => i !== index)
     setSavedSections(updatedSections)
   }
 
-  // Publish blog (calls server API)
   const handlePublish = async () => {
-    // prevent double-submits
-    const tableOfContents = savedSections.map(section => section.subHeading)
-    console.log(tableOfContents)
-
     if (isPublishing) return
 
     if (!title || savedSections.length === 0) {
@@ -99,19 +111,21 @@ export default function WritePage() {
       const res = await fetch("/api/publish", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({title, category, summary, sections: savedSections, tableOfContents}),
+        body: JSON.stringify({
+          title,
+          category,
+          summary,
+          sections: savedSections,
+          tableOfContents: savedSections.map(s => s.subHeading),
+          author: currentUser.uid, // Add author ID
+        }),
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || "Publish failed")
 
-      // success
       alert("Blog published successfully!")
-      // Optionally clear the editor
-      setTitle("")
-      setCategory("Technology")
-      setSummary("")
-      setSavedSections([])
+      router.push(`/profile/${currentUser.uid}`)
     } catch (err) {
       console.error("Publish error", err)
       alert("Failed to publish: " + (err.message || "server error"))
@@ -128,7 +142,7 @@ export default function WritePage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Write Your Blog</h1>
             <div className="flex space-x-3">
-              <button type="button" onClick={handlePublish} disabled={isPublishing} aria-busy={isPublishing} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isPublishing ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+              <button type="button" onClick={handlePublish} disabled={isPublishing} className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-colors ${isPublishing ? "bg-emerald-300 text-white cursor-not-allowed opacity-70" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
                 <Eye className="w-4 h-4" />
                 <span>{isPublishing ? "Publishing..." : "Publish"}</span>
               </button>
@@ -153,7 +167,6 @@ export default function WritePage() {
               </select>
             </div>
 
-            {/* Summary (single-line) */}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Summary (one line)</label>
               <input type="text" value={summary} onChange={e => setSummary(e.target.value)} placeholder="Write a one-line summary of the blog..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
@@ -170,7 +183,7 @@ export default function WritePage() {
             </div>
           )}
 
-          {/* Content Form (Popup Style) */}
+          {/* Content Form */}
           {showContentForm && (
             <div className="bg-white rounded-lg shadow-lg border-2 border-emerald-500 p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
