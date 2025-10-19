@@ -1,4 +1,5 @@
 "use client"
+// src/context/authContext.js - UPDATED VERSION
 import React, {createContext, useContext, useState, useEffect, useMemo} from "react"
 import {getAuth, onAuthStateChanged, signInAnonymously, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, updateProfile} from "firebase/auth"
 import {initializeApp, getApps, getApp} from "firebase/app"
@@ -29,6 +30,22 @@ export const useAuth = () => {
   return context
 }
 
+// Helper function to sync verification status with MongoDB
+const syncVerificationStatus = async user => {
+  try {
+    await fetch("/api/user/sync-verification", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        uid: user.uid,
+        emailVerified: user.emailVerified,
+      }),
+    })
+  } catch (err) {
+    console.error("Error syncing verification:", err)
+  }
+}
+
 export const AuthProvider = ({children}) => {
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -38,7 +55,12 @@ export const AuthProvider = ({children}) => {
       // Refresh user to get latest emailVerified status
       if (user && !user.isAnonymous) {
         await user.reload()
-        setCurrentUser(auth.currentUser)
+        const refreshedUser = auth.currentUser
+
+        // Sync verification status with MongoDB
+        await syncVerificationStatus(refreshedUser)
+
+        setCurrentUser(refreshedUser)
       } else {
         setCurrentUser(user)
       }
@@ -75,6 +97,9 @@ export const AuthProvider = ({children}) => {
       await signOut(auth)
       throw new Error("Please verify your email before logging in.")
     }
+
+    // Sync verification status with MongoDB
+    await syncVerificationStatus(userCredential.user)
 
     return userCredential
   }

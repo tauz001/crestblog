@@ -1,9 +1,11 @@
 "use client"
+// app/(marketing)/blogs/blog_details/[id]/page.jsx - UPDATED WITH AUTHOR CARD
 import React, {useEffect, useState} from "react"
-import {Clock, Calendar, Share2, Bookmark, Heart, User} from "lucide-react"
+import {Clock, Calendar, Share2, Bookmark, Heart} from "lucide-react"
 import {useParams} from "next/navigation"
 import Loader from "@/app/components/Loader"
 import {useAuth} from "@/src/context/authContext"
+import BlogAuthorCard from "@/app/components/BlogAuthorCard"
 
 export default function ArticlePage() {
   const [liked, setLiked] = useState(false)
@@ -36,7 +38,7 @@ export default function ArticlePage() {
 
           // Check if current user has liked/saved this post
           if (currentUser && !currentUser.isAnonymous) {
-            checkUserInteractions(data.data._id.toString()) // Add .toString()
+            checkUserInteractions(data.data._id.toString())
           }
         } else setError(data.error)
       })
@@ -49,7 +51,6 @@ export default function ArticlePage() {
       const data = await res.json()
 
       if (data.success && data.data) {
-        // Convert ObjectIds to strings for comparison
         const likedIds = data.data.likedPosts?.map(id => (typeof id === "object" ? id.toString() : id)) || []
         const savedIds = data.data.savedPosts?.map(id => (typeof id === "object" ? id.toString() : id)) || []
 
@@ -82,11 +83,11 @@ export default function ArticlePage() {
       if (data.success) {
         setLiked(!liked)
       } else {
-        alert("Failed to update like status") // Add this
+        alert("Failed to update like status")
       }
     } catch (err) {
       console.error("Error liking post:", err)
-      alert("Failed to update like status") // Add this
+      alert("Failed to update like status")
     }
   }
 
@@ -116,23 +117,58 @@ export default function ArticlePage() {
     }
   }
 
+  const handleShare = async () => {
+    const url = window.location.href
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: article.title,
+          text: article.summary,
+          url: url,
+        })
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          copyToClipboard(url)
+        }
+      }
+    } else {
+      copyToClipboard(url)
+    }
+  }
+
+  const copyToClipboard = text => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        alert("Link copied to clipboard!")
+      })
+      .catch(() => {
+        alert("Failed to copy link")
+      })
+  }
+
   if (error) return <p className="text-center text-red-500 mt-20">{error}</p>
   if (!article) return <Loader />
 
-  // Extract author info - handle both old and new structure
+  // Extract author info
   const authorInfo =
     typeof article.author === "object"
       ? {
+          uid: article.author.uid,
           name: article.author.name || "Anonymous",
+          email: article.author.email || "",
           avatar: article.author.avatar || article.author.name?.substring(0, 2).toUpperCase() || "NA",
           bio: article.author.bio || "Content creator",
-          posts: 0, // You can add this to the author object if needed
+          location: article.author.location || "",
         }
       : {
+          uid: article.authorUid || "",
           name: "Anonymous",
+          email: "",
           avatar: "NA",
           bio: "Content creator",
-          posts: 0,
+          location: "",
         }
 
   return (
@@ -143,17 +179,7 @@ export default function ArticlePage() {
             {/* Left Sidebar - Author Info (Hidden on mobile) */}
             <div className="hidden lg:block lg:col-span-3">
               <div className="sticky top-24">
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                  <div className="text-center mb-4">
-                    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <span className="text-2xl font-bold text-emerald-700">{authorInfo.avatar}</span>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-lg">{authorInfo.name}</h3>
-                    <p className="text-sm text-gray-500">{authorInfo.posts} Posts</p>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">{authorInfo.bio}</p>
-                  <button className="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">Follow</button>
-                </div>
+                <BlogAuthorCard authorInfo={authorInfo} postId={article._id} />
               </div>
             </div>
 
@@ -166,14 +192,8 @@ export default function ArticlePage() {
                   <h1 className="text-4xl font-bold text-gray-900 mb-4">{article.title}</h1>
 
                   {/* Mobile Author Info */}
-                  <div className="lg:hidden flex items-center mb-4 pb-4 border-b border-gray-200">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-lg font-bold text-emerald-700">{authorInfo.avatar}</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{authorInfo.name}</p>
-                      <p className="text-sm text-gray-500">{authorInfo.posts} Posts</p>
-                    </div>
+                  <div className="lg:hidden mb-6">
+                    <BlogAuthorCard authorInfo={authorInfo} postId={article._id} />
                   </div>
 
                   <div className="flex items-center text-sm text-gray-600 space-x-4">
@@ -185,6 +205,11 @@ export default function ArticlePage() {
                       <Clock className="w-4 h-4 mr-1" />
                       <span>{article.readTime || "5 min read"}</span>
                     </div>
+                    {article.views && (
+                      <div className="flex items-center">
+                        <span>{article.views} views</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -198,7 +223,7 @@ export default function ArticlePage() {
                     <Bookmark className={`w-5 h-5 ${bookmarked ? "fill-current" : ""}`} />
                     <span className="text-sm font-medium">Save</span>
                   </button>
-                  <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
+                  <button onClick={handleShare} className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
                     <Share2 className="w-5 h-5" />
                     <span className="text-sm font-medium">Share</span>
                   </button>

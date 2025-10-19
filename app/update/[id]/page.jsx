@@ -44,7 +44,8 @@ export default function EditPage() {
       .then(data => {
         if (data.success) {
           // Check if current user owns this post
-          if (data.data.author !== currentUser.uid) {
+          const postAuthorUid = data.data.authorUid || (typeof data.data.author === "object" ? data.data.author.uid : data.data.author)
+          if (postAuthorUid !== currentUser.uid) {
             alert("You don't have permission to edit this post")
             router.push("/")
             return
