@@ -1,5 +1,5 @@
 "use client"
-// app/(dashboard)/profile/[user_id]/page.jsx
+// app/(dashboard)/profile/[user_id]/page.jsx - FIXED VERSION
 import React, {useState, useEffect} from "react"
 import {Menu, X, PenSquare, Mountain, User, Settings, LogOut, Clock, Heart, Bookmark, Mail, MapPin, Calendar, FileText, Users, Globe} from "lucide-react"
 import Link from "next/link"
@@ -27,6 +27,8 @@ export default function ProfilePage() {
   const [showFollowingModal, setShowFollowingModal] = useState(false)
   const [followers, setFollowers] = useState([])
   const [following, setFollowing] = useState([])
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
 
   const isOwnProfile = currentUser && currentUser.uid === profileUid
 
@@ -46,6 +48,10 @@ export default function ProfilePage() {
       .then(data => {
         if (data.success && data.data) {
           setProfileData(data.data)
+          setFollowerCount(data.data.followers?.length || 0)
+          setFollowingCount(data.data.following?.length || 0)
+          setSavedBlogs(data.data.savedPosts?.length || 0)
+          setLikedBlogs(data.data.likedPosts?.length || 0)
 
           // Check if current user follows this profile
           if (currentUser && !isOwnProfile) {
@@ -120,12 +126,16 @@ export default function ProfilePage() {
 
       if (data.success) {
         setIsFollowing(!isFollowing)
+        // Update follower count immediately
+        setFollowerCount(prev => (isFollowing ? prev - 1 : prev + 1))
+
         // Refresh profile data to update follower count
         fetch(`/api/user?uid=${profileUid}`)
           .then(r => r.json())
           .then(data => {
             if (data.success && data.data) {
               setProfileData(data.data)
+              setFollowerCount(data.data.followers?.length || 0)
             }
           })
       } else {
@@ -142,32 +152,48 @@ export default function ProfilePage() {
   const loadFollowers = async () => {
     if (!profileData) return
 
+    console.log("Loading followers for UID:", profileUid)
+
     try {
       const res = await fetch(`/api/user/followers?uid=${profileUid}`)
       const data = await res.json()
 
+      console.log("Followers response:", data)
+
       if (data.success) {
         setFollowers(data.followers || [])
         setShowFollowersModal(true)
+      } else {
+        console.error("Failed to load followers:", data.error)
+        alert("Failed to load followers")
       }
     } catch (err) {
       console.error("Error loading followers:", err)
+      alert("Error loading followers")
     }
   }
 
   const loadFollowing = async () => {
     if (!profileData) return
 
+    console.log("Loading following for UID:", profileUid)
+
     try {
       const res = await fetch(`/api/user/following?uid=${profileUid}`)
       const data = await res.json()
 
+      console.log("Following response:", data)
+
       if (data.success) {
         setFollowing(data.following || [])
         setShowFollowingModal(true)
+      } else {
+        console.error("Failed to load following:", data.error)
+        alert("Failed to load following")
       }
     } catch (err) {
       console.error("Error loading following:", err)
+      alert("Error loading following")
     }
   }
 
@@ -250,11 +276,11 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-600">Posts</p>
                   </div>
                   <button onClick={loadFollowers} className="hover:bg-gray-50 px-3 py-1 rounded transition-colors">
-                    <p className="text-2xl font-bold text-gray-900">{profileData.followers?.length || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{followerCount}</p>
                     <p className="text-sm text-gray-600">Followers</p>
                   </button>
                   <button onClick={loadFollowing} className="hover:bg-gray-50 px-3 py-1 rounded transition-colors">
-                    <p className="text-2xl font-bold text-gray-900">{profileData.following?.length || 0}</p>
+                    <p className="text-2xl font-bold text-gray-900">{followingCount}</p>
                     <p className="text-sm text-gray-600">Following</p>
                   </button>
                 </div>
@@ -290,12 +316,12 @@ export default function ProfilePage() {
                   <button onClick={() => setActiveTab("saved")} className={`flex-1 flex items-center justify-center space-x-2 px-6 py-4 font-medium transition-colors ${activeTab === "saved" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-600 hover:text-gray-900"}`}>
                     <Bookmark className="w-5 h-5" />
                     <span>Saved</span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">{savedBlogs.length}</span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">{savedBlogs}</span>
                   </button>
                   <button onClick={() => setActiveTab("liked")} className={`flex-1 flex items-center justify-center space-x-2 px-6 py-4 font-medium transition-colors ${activeTab === "liked" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-600 hover:text-gray-900"}`}>
                     <Heart className="w-5 h-5" />
                     <span>Liked</span>
-                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">{likedBlogs.length}</span>
+                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">{likedBlogs}</span>
                   </button>
                 </div>
               </div>

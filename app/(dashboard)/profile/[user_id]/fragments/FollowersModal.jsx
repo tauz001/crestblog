@@ -18,7 +18,7 @@ export default function FollowersModal({isOpen, onClose, users, title}) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -44,8 +44,8 @@ export default function FollowersModal({isOpen, onClose, users, title}) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                    {user.bio && <p className="text-xs text-gray-600 truncate mt-1">{user.bio}</p>}
+                    {/* <p className="text-xs text-gray-500 truncate">{user.email}</p> */}
+                    {/* {user.bio && <p className="text-xs text-gray-600 truncate mt-1">{user.bio}</p>} */}
                   </div>
                 </Link>
               ))}
