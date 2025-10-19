@@ -121,19 +121,27 @@ export default function WritePage() {
           category,
           summary,
           sections: savedSections,
-          tableOfContents: savedSections.map(s => s.subHeading),
-          author: currentUser.uid,
+          authorUid: currentUser.uid, // Send only UID, API will fetch full user data
         }),
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || "Publish failed")
 
-      alert("Blog published successfully!")
+      if (!res.ok) {
+        throw new Error(data?.error || "Publish failed")
+      }
+
+      if (data.duplicate) {
+        alert("⚠️ This post seems to be a duplicate. Redirecting to existing post...")
+        router.push(`/blogs/blog_details/${data.postId}`)
+        return
+      }
+
+      alert("✅ Blog published successfully!")
       router.push(`/profile/${currentUser.uid}`)
     } catch (err) {
       console.error("Publish error", err)
-      alert("Failed to publish: " + (err.message || "server error"))
+      alert("❌ Failed to publish: " + (err.message || "server error"))
     } finally {
       setIsPublishing(false)
     }

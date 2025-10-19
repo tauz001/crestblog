@@ -1,11 +1,13 @@
+// app/api/publish/[id]/route.js
 import dbConnect from "@/src/lib/mongoose"
 import Post from "@/src/models/post"
+import User from "@/src/models/user"
 
 export async function GET(req, {params}) {
   try {
     await dbConnect()
     const {id} = await params
-    const post = await Post.findById(id)
+    const post = await Post.findById(id).lean()
 
     if (!post) {
       return new Response(JSON.stringify({success: false, error: "Post not found"}), {status: 404, headers: {"Content-Type": "application/json"}})
@@ -23,6 +25,21 @@ export async function PUT(req, {params}) {
     await dbConnect()
     const {id} = params
     const body = await req.json()
+
+    // If updating, refresh author data from User collection
+    if (body.authorUid) {
+      const user = await User.findOne({uid: body.authorUid}).lean()
+
+      if (user) {
+        body.author = {
+          uid: user.uid,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar || "",
+          bio: user.bio || "",
+        }
+      }
+    }
 
     const updatedPost = await Post.findByIdAndUpdate(id, body, {new: true})
 
@@ -42,7 +59,7 @@ export async function PUT(req, {params}) {
 }
 
 export async function DELETE(req, {params}) {
-  const {id} = await params 
+  const {id} = await params
 
   try {
     await dbConnect()

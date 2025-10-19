@@ -2,10 +2,9 @@
 import React, {useEffect, useState} from "react"
 import {PenSquare, Clock, User} from "lucide-react"
 import FeaturedCarousal from "./components/Homepage/FeaturedCarousal"
+import Link from "next/link"
 
-// simple inline formatter for MongoDB createdAt (accepts Date or ISO string)
-// pass shortMonth = true for "dd Mon yyyy" (e.g. "03 Oct 2025")
-// pass shortMonth = false for "ddmmyyyy" (e.g. "03102025")
+// Format date helper
 function formatDateFromMongo(value, shortMonth = true) {
   if (!value) return ""
   const d = typeof value === "string" ? new Date(value) : value instanceof Date ? value : new Date(value)
@@ -18,10 +17,19 @@ function formatDateFromMongo(value, shortMonth = true) {
   return `${dd} ${months[d.getMonth()]} ${yyyy}`
 }
 
+// Get author name - support both old and new formats
+const getAuthorName = post => {
+  if (typeof post.author === "object" && post.author?.name) {
+    return post.author.name
+  }
+  return "Anonymous"
+}
+
 // Homepage Component
 export default function Homepage() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [blog, setBlog] = useState([])
+  const [loading, setLoading] = useState(true)
 
   const categories = ["All", "Technology", "Lifestyle", "Health", "Travel", "Design"]
 
@@ -29,15 +37,22 @@ export default function Homepage() {
 
   useEffect(() => {
     let mounted = true
+    setLoading(true)
+
     fetch("/api/publish")
       .then(r => r.json())
       .then(data => {
         if (!mounted) return
-        if (data?.success) setBlog(data.data || [])
-        // else setError(data?.error || "Failed to load")
+        if (data?.success) {
+          setBlog(data.data || [])
+        }
       })
-      .then(console.log())
-      .catch(err => mounted && "Fetch error")
+      .catch(err => {
+        if (mounted) console.error("Fetch error:", err)
+      })
+      .finally(() => {
+        if (mounted) setLoading(false)
+      })
 
     return () => {
       mounted = false
@@ -55,11 +70,13 @@ export default function Homepage() {
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">Join our community of writers and readers sharing knowledge, experiences, and ideas</p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button className="flex items-center justify-center space-x-2 bg-emerald-600 text-white px-8 py-3 rounded-lg hover:bg-emerald-700 transition-colors text-lg font-medium shadow-lg cursor-pointer">
+              <Link href="/write" className="flex items-center justify-center space-x-2 bg-emerald-600 text-white px-8 py-3 rounded-lg hover:bg-emerald-700 transition-colors text-lg font-medium shadow-lg cursor-pointer">
                 <PenSquare className="w-5 h-5" />
                 <span>Start Writing</span>
-              </button>
-              <button className="bg-white text-emerald-600 px-8 py-3 rounded-lg hover:bg-emerald-600 transition-colors text-lg font-medium border-2 border-emerald-600 cursor-pointer hover:text-white">Explore Blogs</button>
+              </Link>
+              <Link href="/blogs" className="bg-white text-emerald-600 px-8 py-3 rounded-lg hover:bg-emerald-600 transition-colors text-lg font-medium border-2 border-emerald-600 cursor-pointer hover:text-white text-center">
+                Explore Blogs
+              </Link>
             </div>
           </div>
 
@@ -89,30 +106,40 @@ export default function Homepage() {
           </div>
 
           {/* Blog Posts Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPosts.map(post => (
-              <div key={post._id} className="bg-white rounded-lg p-6 shadow-sm hover:shadow-lg transition-shadow cursor-pointer border border-gray-100">
-                <div className="mb-3">
-                  <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">{post.category}</span>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-600 transition-colors">{post.title}</h3>
-                <p className="text-gray-600 mb-4 text-sm">{post.summary}</p>
-                <div className="flex items-center text-sm text-gray-500 mb-2">
-                  <User className="w-4 h-4 mr-1" />
-                  <span>{post.author}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>{formatDateFromMongo(post.createdAt, true)}</span>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    <span>{post.readTime}</span>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading blogs...</p>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPosts.map(post => (
+                <Link key={post._id} href={`/blogs/blog_details/${post._id}`}>
+                  <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-lg transition-shadow cursor-pointer border border-gray-100">
+                    <div className="mb-3">
+                      <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">{post.category}</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3 hover:text-emerald-600 transition-colors">{post.title}</h3>
+                    <p className="text-gray-600 mb-4 text-sm">{post.summary}</p>
+                    <div className="flex items-center text-sm text-gray-500 mb-2">
+                      <User className="w-4 h-4 mr-1" />
+                      <span>{getAuthorName(post)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <span>{formatDateFromMongo(post.createdAt, true)}</span>
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>{post.readTime || "5 min read"}</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
 
-          {filteredPosts.length === 0 && (
+          {/* No Results */}
+          {filteredPosts.length === 0 && !loading && (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No blogs found in this category.</p>
             </div>

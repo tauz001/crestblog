@@ -20,8 +20,19 @@ const MyPost = () => {
       .then(data => {
         if (!mounted) return
         if (data?.success) {
-          // Filter posts by current user's UID
-          const userPosts = (data.data || []).filter(post => post.author === currentUser.uid)
+          // Filter posts by current user's UID - handle both old and new structure
+          const userPosts = (data.data || []).filter(post => {
+            // New structure: author is an object with uid
+            if (post.author && typeof post.author === "object" && post.author.uid) {
+              return post.author.uid === currentUser.uid
+            }
+            // Old structure: author is just a UID string (for backward compatibility)
+            if (typeof post.author === "string") {
+              return post.author === currentUser.uid
+            }
+            // Check authorUid field
+            return post.authorUid === currentUser.uid
+          })
           setMyPosts(userPosts)
         } else {
           setError(data?.error || "Failed to load")

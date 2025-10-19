@@ -1,17 +1,15 @@
 "use client"
 import React, {useEffect, useState} from "react"
-import {Clock, Calendar, Share2, Bookmark, Heart, CircleDot, Dot} from "lucide-react"
+import {Clock, Calendar, Share2, Bookmark, Heart, User} from "lucide-react"
 import {useParams} from "next/navigation"
 import Loader from "@/app/components/Loader"
-// import { useParams } from "next/navigation"
+import {useAuth} from "@/src/context/authContext"
 
-// Navbar Component
-
-// Article Page Component
 export default function ArticlePage() {
   const [liked, setLiked] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
   const {id} = useParams()
+  const {currentUser} = useAuth()
   const [article, setArticle] = useState(null)
   const [error, setError] = useState(null)
 
@@ -27,84 +25,115 @@ export default function ArticlePage() {
     return `${dd} ${months[d.getMonth()]} ${yyyy}`
   }
 
-  // const article = {
-  //   title: "Getting Started with React: A Complete Beginner's Guide",
-  //   category: "Technology",
-  //   author: {
-  //     name: "John Doe",
-  //     bio: "Full-stack developer and tech enthusiast. Passionate about teaching coding to beginners.",
-  //     avatar: "JD",
-  //     posts: 24,
-  //   },
-  //   date: "October 3, 2025",
-  //   readTime: "8 min read",
-  //   content: [
-  //     {
-  //       type: "paragraph",
-  //       text: "React has revolutionized the way we build user interfaces. In this comprehensive guide, we'll explore everything you need to know to get started with React development.",
-  //     },
-  //     {
-  //       type: "heading",
-  //       text: "What is React?",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "React is a JavaScript library for building user interfaces, particularly single-page applications. It was developed by Facebook and has become one of the most popular front-end libraries in the world.",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "React allows developers to create reusable UI components, making it easier to manage complex applications. The component-based architecture promotes code reusability and maintainability.",
-  //     },
-  //     {
-  //       type: "heading",
-  //       text: "Why Choose React?",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "There are several compelling reasons to choose React for your next project. First, it has a gentle learning curve for those familiar with JavaScript. Second, the vast ecosystem and community support means you'll find solutions to almost any problem you encounter.",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "React's virtual DOM ensures optimal performance by minimizing direct manipulation of the actual DOM. This results in faster rendering and a smoother user experience, especially in data-intensive applications.",
-  //     },
-  //     {
-  //       type: "heading",
-  //       text: "Getting Started",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "To start building with React, you'll need Node.js installed on your computer. Once you have that set up, you can use Create React App, a tool that sets up a new React project with all the necessary configurations.",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "The beauty of React lies in its simplicity. You can start with functional components and gradually learn about hooks, state management, and more advanced concepts as you grow more comfortable with the basics.",
-  //     },
-  //     {
-  //       type: "heading",
-  //       text: "Conclusion",
-  //     },
-  //     {
-  //       type: "paragraph",
-  //       text: "React is an excellent choice for building modern web applications. Whether you're a beginner or an experienced developer, React's flexibility and powerful features make it a valuable tool in your development arsenal. Start small, practice regularly, and you'll be building amazing applications in no time.",
-  //     },
-  //   ],
-  //   tableOfContents: ["What is React?", "Why Choose React?", "Getting Started", "Conclusion"],
-  // }
   useEffect(() => {
     if (!id) return
 
     fetch(`/api/publish/${id}`)
       .then(res => res.json())
       .then(data => {
-        if (data.success) setArticle(data.data)
-        else setError(data.error)
-      })
-      .then(console.log)
-      .catch(err => setError(err.message))
-  }, [id])
+        if (data.success) {
+          setArticle(data.data)
 
-  if (error) return <p>{error}</p>
-  if (!article) return <Loader/>
+          // Check if current user has liked/saved this post
+          if (currentUser && !currentUser.isAnonymous) {
+            checkUserInteractions(data.data._id.toString()) // Add .toString()
+          }
+        } else setError(data.error)
+      })
+      .catch(err => setError(err.message))
+  }, [id, currentUser])
+
+  const checkUserInteractions = async postId => {
+    try {
+      const res = await fetch(`/api/user?uid=${currentUser.uid}`)
+      const data = await res.json()
+
+      if (data.success && data.data) {
+        // Convert ObjectIds to strings for comparison
+        const likedIds = data.data.likedPosts?.map(id => (typeof id === "object" ? id.toString() : id)) || []
+        const savedIds = data.data.savedPosts?.map(id => (typeof id === "object" ? id.toString() : id)) || []
+
+        setLiked(likedIds.includes(postId.toString()))
+        setBookmarked(savedIds.includes(postId.toString()))
+      }
+    } catch (err) {
+      console.error("Error checking interactions:", err)
+    }
+  }
+
+  const handleLike = async () => {
+    if (!currentUser || currentUser.isAnonymous) {
+      alert("Please login to like posts")
+      return
+    }
+
+    try {
+      const res = await fetch("/api/user/interactions", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          uid: currentUser.uid,
+          action: liked ? "unlike" : "like",
+          targetId: article._id,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setLiked(!liked)
+      } else {
+        alert("Failed to update like status") // Add this
+      }
+    } catch (err) {
+      console.error("Error liking post:", err)
+      alert("Failed to update like status") // Add this
+    }
+  }
+
+  const handleBookmark = async () => {
+    if (!currentUser || currentUser.isAnonymous) {
+      alert("Please login to save posts")
+      return
+    }
+
+    try {
+      const res = await fetch("/api/user/interactions", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          uid: currentUser.uid,
+          action: bookmarked ? "unsave" : "save",
+          targetId: article._id,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setBookmarked(!bookmarked)
+      }
+    } catch (err) {
+      console.error("Error bookmarking post:", err)
+    }
+  }
+
+  if (error) return <p className="text-center text-red-500 mt-20">{error}</p>
+  if (!article) return <Loader />
+
+  // Extract author info - handle both old and new structure
+  const authorInfo =
+    typeof article.author === "object"
+      ? {
+          name: article.author.name || "Anonymous",
+          avatar: article.author.avatar || article.author.name?.substring(0, 2).toUpperCase() || "NA",
+          bio: article.author.bio || "Content creator",
+          posts: 0, // You can add this to the author object if needed
+        }
+      : {
+          name: "Anonymous",
+          avatar: "NA",
+          bio: "Content creator",
+          posts: 0,
+        }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -117,12 +146,12 @@ export default function ArticlePage() {
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                   <div className="text-center mb-4">
                     <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <span className="text-2xl font-bold text-emerald-700">{article.author?.avatar || "NA"}</span>
+                      <span className="text-2xl font-bold text-emerald-700">{authorInfo.avatar}</span>
                     </div>
-                    <h3 className="font-bold text-gray-900 text-lg">{article.author?.name || "NA"}</h3>
-                    <p className="text-sm text-gray-500">{article.author?.posts || "NA"} Posts</p>
+                    <h3 className="font-bold text-gray-900 text-lg">{authorInfo.name}</h3>
+                    <p className="text-sm text-gray-500">{authorInfo.posts} Posts</p>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">{article.author?.bio || "NA"}</p>
+                  <p className="text-sm text-gray-600 mb-4">{authorInfo.bio}</p>
                   <button className="w-full bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium">Follow</button>
                 </div>
               </div>
@@ -139,33 +168,33 @@ export default function ArticlePage() {
                   {/* Mobile Author Info */}
                   <div className="lg:hidden flex items-center mb-4 pb-4 border-b border-gray-200">
                     <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-lg font-bold text-emerald-700">{article.author?.avatar || "NA"}</span>
+                      <span className="text-lg font-bold text-emerald-700">{authorInfo.avatar}</span>
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{article.author?.name || "NA"}</p>
-                      <p className="text-sm text-gray-500">{article.author?.posts || "NA"} Posts</p>
+                      <p className="font-semibold text-gray-900">{authorInfo.name}</p>
+                      <p className="text-sm text-gray-500">{authorInfo.posts} Posts</p>
                     </div>
                   </div>
 
                   <div className="flex items-center text-sm text-gray-600 space-x-4">
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-1" />
-                      <span>{article.date}</span>
+                      <span>{formatDateFromMongo(article.createdAt)}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
-                      <span>{article.readTime}</span>
+                      <span>{article.readTime || "5 min read"}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Article Actions */}
                 <div className="flex items-center space-x-4 mb-8 pb-8 border-b border-gray-200">
-                  <button onClick={() => setLiked(!liked)} className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${liked ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                  <button onClick={handleLike} className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${liked ? "bg-red-100 text-red-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                     <Heart className={`w-5 h-5 ${liked ? "fill-current" : ""}`} />
                     <span className="text-sm font-medium">Like</span>
                   </button>
-                  <button onClick={() => setBookmarked(!bookmarked)} className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${bookmarked ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                  <button onClick={handleBookmark} className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${bookmarked ? "bg-emerald-100 text-emerald-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                     <Bookmark className={`w-5 h-5 ${bookmarked ? "fill-current" : ""}`} />
                     <span className="text-sm font-medium">Save</span>
                   </button>
@@ -175,12 +204,19 @@ export default function ArticlePage() {
                   </button>
                 </div>
 
+                {/* Article Summary */}
+                {article.summary && (
+                  <div className="mb-6 p-4 bg-emerald-50 border-l-4 border-emerald-600 rounded">
+                    <p className="text-gray-700 italic">{article.summary}</p>
+                  </div>
+                )}
+
                 {/* Article Content */}
                 <div className="prose prose-lg max-w-none">
                   {article?.sections?.map((section, index) => (
                     <div key={index}>
                       {section.subHeading && <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">{section.subHeading}</h2>}
-                      {section.content && <p className="text-gray-700 leading-relaxed mb-6">{section.content}</p>}
+                      {section.content && <p className="text-gray-700 leading-relaxed mb-6 whitespace-pre-wrap">{section.content}</p>}
                     </div>
                   ))}
                 </div>
@@ -193,7 +229,7 @@ export default function ArticlePage() {
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                   <h3 className="font-bold text-gray-900 mb-4">Table of Contents</h3>
                   <div className="space-y-2 pe-5 ps-5">
-                    {article.sections.map((section, index) => (
+                    {article.sections?.map((section, index) => (
                       <ul key={index} className="list-disc block text-sm text-gray-600 hover:text-emerald-600 transition-colors py-1">
                         <li>{section.subHeading}</li>
                       </ul>

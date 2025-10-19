@@ -12,7 +12,7 @@ export async function GET(req) {
 
     if (uid) {
       // Fetch specific user by Firebase UID
-      const user = await User.findOne({uid}).populate("savedPosts").populate("likedPosts").lean()
+      const user = await User.findOne({uid}).lean()
 
       if (!user) {
         return new Response(JSON.stringify({success: false, error: "User not found"}), {

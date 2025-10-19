@@ -120,41 +120,46 @@ export default function BlogsListingPage() {
 
           {/* Blog Posts List */}
           <div className="space-y-6">
-            {filteredPosts.map(post => (
-              <Link key={post._id} href={`/blogs/blog_details/${post._id}`}>
-                <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 overflow-hidden cursor-pointer">
-                  <div className="p-6">
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3">
-                      <div className="flex-1">
-                        <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full mb-3">{post.category}</span>
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2 hover:text-emerald-600 transition-colors">{post.title}</h2>
-                        <p className="text-gray-600 mb-4">{post.summary || "Read more to discover..."}</p>
-                      </div>
-                    </div>
+            {filteredPosts.map(post => {
+              // Extract author name - handle both old and new structure
+              const authorName = typeof post.author === "object" ? post.author.name : post.author || "Anonymous"
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                      <div className="flex items-center">
-                        <User className="w-4 h-4 mr-1" />
-                        <span>{post.author || "Anonymous"}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span>{formatDateFromMongo(post.createdAt)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{post.readTime || "5 min read"}</span>
-                      </div>
-                      {post.views && (
-                        <div className="flex items-center">
-                          <span>{post.views} views</span>
+              return (
+                <Link key={post._id} href={`/blogs/blog_details/${post._id}`}>
+                  <div className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-100 overflow-hidden cursor-pointer">
+                    <div className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-3">
+                        <div className="flex-1">
+                          <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full mb-3">{post.category}</span>
+                          <h2 className="text-2xl font-bold text-gray-900 mb-2 hover:text-emerald-600 transition-colors">{post.title}</h2>
+                          <p className="text-gray-600 mb-4">{post.summary || "Read more to discover..."}</p>
                         </div>
-                      )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <User className="w-4 h-4 mr-1" />
+                          <span>{authorName}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          <span>{formatDateFromMongo(post.createdAt)}</span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="w-4 h-4 mr-1" />
+                          <span>{post.readTime || "5 min read"}</span>
+                        </div>
+                        {post.views && (
+                          <div className="flex items-center">
+                            <span>{post.views} views</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
 
           {/* No Results */}

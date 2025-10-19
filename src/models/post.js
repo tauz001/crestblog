@@ -9,6 +9,18 @@ const sectionSchema = new mongoose.Schema(
   {_id: false}
 )
 
+// Embedded author schema
+const authorSchema = new mongoose.Schema(
+  {
+    uid: {type: String, required: true},
+    name: {type: String, required: true},
+    email: {type: String, required: true},
+    avatar: {type: String, default: ""},
+    bio: {type: String, default: ""},
+  },
+  {_id: false}
+)
+
 const postSchema = new mongoose.Schema(
   {
     title: {type: String, required: true, trim: true},
@@ -16,8 +28,14 @@ const postSchema = new mongoose.Schema(
     summary: {type: String, trim: true, maxlength: 300},
     sections: {type: [sectionSchema], required: true},
 
-    // Author is Firebase UID (string)
+    // Embedded author information (for fast reads)
     author: {
+      type: authorSchema,
+      required: true,
+    },
+
+    // Keep author UID for filtering/indexing
+    authorUid: {
       type: String,
       required: true,
       index: true,
@@ -45,20 +63,12 @@ const postSchema = new mongoose.Schema(
 )
 
 // Indexes for better query performance
-postSchema.index({author: 1, createdAt: -1})
+postSchema.index({authorUid: 1, createdAt: -1})
 postSchema.index({category: 1, createdAt: -1})
 postSchema.index({published: 1, createdAt: -1})
 postSchema.index({featured: 1, createdAt: -1})
 postSchema.index({likes: -1})
 postSchema.index({views: -1})
-
-// Virtual to populate author details from User collection
-postSchema.virtual("authorDetails", {
-  ref: "User",
-  localField: "author",
-  foreignField: "uid",
-  justOne: true,
-})
 
 // Method to increment views
 postSchema.methods.incrementViews = function () {
@@ -79,15 +89,6 @@ postSchema.statics.getByCategory = function (category, limit = 20) {
 // Ensure virtuals are included in JSON
 postSchema.set("toJSON", {virtuals: true})
 postSchema.set("toObject", {virtuals: true})
-
-// Check if model already exists to prevent recompilation
-if (mongoose.models && mongoose.models.Post) {
-  const existing = mongoose.models.Post
-  // If the existing compiled model doesn't have new fields, remove it
-  if (!existing.schema.path("likes")) {
-    delete mongoose.models.Post
-  }
-}
 
 const Post = mongoose.models.Post || mongoose.model("Post", postSchema)
 
