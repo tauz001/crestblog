@@ -72,17 +72,14 @@ export default function AboutUs() {
 
         {/* Team */}
         <div className="mt-16">
-          <h3 className="text-2xl font-bold text-gray-900 text-center">Meet the Team</h3>
+          <h3 className="text-2xl font-bold text-gray-900 text-center ">
+            Meet the <span className="line-through">Team</span>
+          </h3>
           <p className="mt-4 text-center text-gray-600 max-w-2xl mx-auto">A small, focused team helping to keep the platform friendly and useful.</p>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-6 sm:grid-cols lg:grid">
             {/* Minimal team cards; you can replace with real images */}
-            {[
-              {name: "Aisha Khan", role: "Editor"},
-              {name: "Mark Chen", role: "Lead Engineer"},
-              {name: "Sara Ali", role: "Product"},
-              {name: "Ravi Singh", role: "Community"},
-            ].map(person => (
+            {[{name: "Mohammad Tauz", role: "MERN Stack Developer"}].map(person => (
               <div key={person.name} className="p-4 border rounded-lg text-center">
                 <div className="mx-auto w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl font-semibold">
                   {person.name
@@ -93,7 +90,9 @@ export default function AboutUs() {
                 <h4 className="mt-3 font-semibold text-gray-900">{person.name}</h4>
                 <p className="text-sm text-gray-600">{person.role}</p>
               </div>
+              
             ))}
+            
           </div>
         </div>
 

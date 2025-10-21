@@ -6,6 +6,7 @@ import {useParams} from "next/navigation"
 import Loader from "@/app/components/Loader"
 import {useAuth} from "@/src/context/authContext"
 import BlogAuthorCard from "@/app/components/BlogAuthorCard"
+import Comments from "@/app/components/Comments"
 
 export default function ArticlePage() {
   const [liked, setLiked] = useState(false)
@@ -245,6 +246,7 @@ export default function ArticlePage() {
                     </div>
                   ))}
                 </div>
+                <Comments postId={article._id} />
               </article>
             </div>
 
