@@ -330,6 +330,9 @@ export default function Navbar() {
                   <Link href="/blogs" className="text-gray-700 hover:text-emerald-600 transition-colors">
                     Blogs
                   </Link>
+                  <Link href="/news" className="text-gray-700 hover:text-emerald-600 transition-colors">
+                    News
+                  </Link>
                   <Link href={"/write"} className="flex items-center space-x-2 bg-emerald-600 text-white px-5 py-2 rounded-lg hover:bg-emerald-700 transition-colors">
                     <PenSquare className="w-4 h-4" />
                     <span>Write</span>
