@@ -32,23 +32,23 @@ export default function ArticlePage() {
     const date = new Date(dateString)
     const now = new Date()
     const seconds = Math.floor((now - date) / 1000)
-    
+
     const intervals = {
       year: 31536000,
       month: 2592000,
       week: 604800,
       day: 86400,
       hour: 3600,
-      minute: 60
+      minute: 60,
     }
-    
+
     for (const [unit, secondsInUnit] of Object.entries(intervals)) {
       const interval = Math.floor(seconds / secondsInUnit)
       if (interval >= 1) {
-        return `${interval} ${unit}${interval === 1 ? '' : 's'} ago`
+        return `${interval} ${unit}${interval === 1 ? "" : "s"} ago`
       }
     }
-    return 'Just now'
+    return "Just now"
   }
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function ArticlePage() {
     setLoading(true)
     setError(null)
 
-    fetch(`https://newsdata.io/api/1/latest?apikey=pub_eb680439272c4748b11a38eb03cc9b92&id=${id}`)
+    fetch(`https://newsdata.io/api/1/latest?apikey=pub_58e0cfe913d04cf7a7d5c77b57b2ecef&id=${id}`)
       .then(res => {
         if (!res.ok) throw new Error("Network response was not ok")
         return res.json()
@@ -190,16 +190,16 @@ export default function ArticlePage() {
     name: article.creator?.[0] || article.source_name || article.source_id || "Anonymous",
     email: "",
     avatar: (article.source_name || article.source_id || "NA").substring(0, 2).toUpperCase(),
-    bio: `News source from ${article.country?.[0] || 'Unknown'}`,
+    bio: `News source from ${article.country?.[0] || "Unknown"}`,
     location: article.country?.[0] || "",
   }
 
   // Get country flag emoji
-  const getCountryFlag = (countryCode) => {
+  const getCountryFlag = countryCode => {
     if (!countryCode) return ""
     const codePoints = countryCode
       .toUpperCase()
-      .split('')
+      .split("")
       .map(char => 127397 + char.charCodeAt(0))
     return String.fromCodePoint(...codePoints)
   }
@@ -213,7 +213,7 @@ export default function ArticlePage() {
             <div className="hidden lg:block lg:col-span-3">
               <div className="sticky top-24 space-y-6">
                 <BlogAuthorCard authorInfo={authorInfo} postId={article.article_id} />
-                
+
                 {/* Article Meta Info */}
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                   <h3 className="font-bold text-gray-900 mb-4">Article Info</h3>
@@ -229,7 +229,7 @@ export default function ArticlePage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {article.language && (
                       <div className="flex items-start gap-2">
                         <Globe className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
@@ -239,7 +239,7 @@ export default function ArticlePage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {article.pubDate && (
                       <div className="flex items-start gap-2">
                         <Clock className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
@@ -249,7 +249,7 @@ export default function ArticlePage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {article.sentiment && (
                       <div className="flex items-start gap-2">
                         <TrendingUp className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
@@ -279,7 +279,7 @@ export default function ArticlePage() {
                       ))}
                     </div>
                   )}
-                  
+
                   <h1 className="text-4xl font-bold text-gray-900 mb-4">{article.title}</h1>
 
                   {/* Mobile Source Info */}
@@ -299,7 +299,9 @@ export default function ArticlePage() {
                     {article.country && article.country.length > 0 && (
                       <div className="flex items-center">
                         <MapPin className="w-4 h-4 mr-1" />
-                        <span>{getCountryFlag(article.country[0])} {article.country[0].toUpperCase()}</span>
+                        <span>
+                          {getCountryFlag(article.country[0])} {article.country[0].toUpperCase()}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -320,12 +322,7 @@ export default function ArticlePage() {
                     <span className="text-sm font-medium">Share</span>
                   </button>
                   {article.link && (
-                    <a 
-                      href={article.link} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg transition-colors"
-                    >
+                    <a href={article.link} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-lg transition-colors">
                       <ExternalLink className="w-5 h-5" />
                       <span className="text-sm font-medium">Read Original</span>
                     </a>
@@ -339,8 +336,8 @@ export default function ArticlePage() {
                       src={String(article.image_url)}
                       alt={article.title || "Article Image"}
                       style={{width: "100%", height: "100%", objectFit: "cover"}}
-                      onError={(e) => {
-                        e.target.style.display = 'none'
+                      onError={e => {
+                        e.target.style.display = "none"
                       }}
                     />
                   </div>
@@ -388,12 +385,7 @@ export default function ArticlePage() {
                       <span className="font-semibold">Source:</span> {article.source_name || article.source_id}
                     </p>
                     {article.source_url && (
-                      <a 
-                        href={article.source_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                      >
+                      <a href={article.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
                         Visit source website
                         <ExternalLink className="w-3 h-3" />
                       </a>
@@ -427,9 +419,7 @@ export default function ArticlePage() {
                 {article.ai_tag && (
                   <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100">
                     <h3 className="font-bold text-gray-900 mb-3">AI Classification</h3>
-                    <p className="text-sm text-gray-700 capitalize bg-purple-50 px-3 py-2 rounded">
-                      {article.ai_tag}
-                    </p>
+                    <p className="text-sm text-gray-700 capitalize bg-purple-50 px-3 py-2 rounded">{article.ai_tag}</p>
                   </div>
                 )}
 

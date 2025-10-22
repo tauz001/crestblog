@@ -3,6 +3,7 @@ import React, {useState, useEffect} from "react"
 import {X, Eye, Plus, Edit2, Trash2, Check, AlertCircle} from "lucide-react"
 import {useRouter} from "next/navigation"
 import {useAuth} from "@/src/context/authContext"
+import ImageUpload from "@/app/components/ImageUpload"
 
 export default function WritePage() {
   const {currentUser, loading} = useAuth()
@@ -18,9 +19,12 @@ export default function WritePage() {
   const [showContentForm, setShowContentForm] = useState(false)
   const [editingIndex, setEditingIndex] = useState(null)
 
+  // NEW: Image state
+  const [featuredImage, setFeaturedImage] = useState("")
+  const [imageAlt, setImageAlt] = useState("")
+
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
-  // Redirect if not authenticated or email not verified
   useEffect(() => {
     if (!loading) {
       if (!currentUser || currentUser.isAnonymous) {
@@ -33,7 +37,6 @@ export default function WritePage() {
     }
   }, [currentUser, loading, router])
 
-  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -45,7 +48,6 @@ export default function WritePage() {
     )
   }
 
-  // If not authenticated or not verified, show nothing (will redirect)
   if (!currentUser || currentUser.isAnonymous || !currentUser.emailVerified) {
     return null
   }
@@ -121,7 +123,13 @@ export default function WritePage() {
           category,
           summary,
           sections: savedSections,
-          authorUid: currentUser.uid, // Send only UID, API will fetch full user data
+          authorUid: currentUser.uid,
+          featuredImage: featuredImage
+            ? {
+                url: featuredImage,
+                alt: imageAlt || title,
+              }
+            : null,
         }),
       })
 
@@ -151,7 +159,6 @@ export default function WritePage() {
     <div className="min-h-screen bg-gray-50">
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          {/* Email Verification Notice */}
           {currentUser && !currentUser.emailVerified && (
             <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -162,7 +169,6 @@ export default function WritePage() {
             </div>
           )}
 
-          {/* Header Actions */}
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Write Your Blog</h1>
             <div className="flex space-x-3">
@@ -173,14 +179,14 @@ export default function WritePage() {
             </div>
           </div>
 
-          {/* Title and Category Section */}
+          {/* Title, Category, and Summary */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Blog Title *</label>
               <input type="text" value={title} onChange={handleTitleChange} placeholder="Enter your blog title..." className="w-full text-2xl font-bold text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
             </div>
 
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select value={category} onChange={e => setCategory(e.target.value)} className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none">
                 {categories.map(cat => (
@@ -191,13 +197,24 @@ export default function WritePage() {
               </select>
             </div>
 
-            <div className="mt-4">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Summary (one line)</label>
               <input type="text" value={summary} onChange={e => setSummary(e.target.value)} placeholder="Write a one-line summary of the blog..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
             </div>
+
+            {/* NEW: Featured Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Featured Image (Optional)</label>
+              <ImageUpload value={featuredImage} onChange={url => setFeaturedImage(url)} onRemove={() => setFeaturedImage("")} />
+              {featuredImage && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Image Alt Text</label>
+                  <input type="text" value={imageAlt} onChange={e => setImageAlt(e.target.value)} placeholder="Describe the image for accessibility..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Add Content Button */}
           {canAddContent && (
             <div className="mb-6">
               <button onClick={handleAddContent} disabled={showContentForm} className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${showContentForm ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
@@ -207,7 +224,6 @@ export default function WritePage() {
             </div>
           )}
 
-          {/* Content Form */}
           {showContentForm && (
             <div className="bg-white rounded-lg shadow-lg border-2 border-emerald-500 p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
@@ -255,7 +271,6 @@ export default function WritePage() {
             </div>
           )}
 
-          {/* Saved Sections Display */}
           {savedSections.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Content Sections ({savedSections.length})</h2>

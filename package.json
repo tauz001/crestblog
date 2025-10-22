@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",
+    "cloudinary": "^2.8.0",
     "dotenv": "^17.2.3",
     "firebase": "^12.4.0",
     "firebase-tools": "^14.20.0",

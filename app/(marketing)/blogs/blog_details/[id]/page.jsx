@@ -229,6 +229,11 @@ export default function ArticlePage() {
                     <span className="text-sm font-medium">Share</span>
                   </button>
                 </div>
+                {article.featuredImage?.url && (
+                  <div className="mb-8 rounded-lg overflow-hidden shadow-md">
+                    <img src={article.featuredImage.url} alt={article.featuredImage.alt || article.title} className="w-full h-auto max-h-[600px] object-cover" loading="lazy" />
+                  </div>
+                )}
 
                 {/* Article Summary */}
                 {article.summary && (
@@ -236,6 +241,7 @@ export default function ArticlePage() {
                     <p className="text-gray-700 italic">{article.summary}</p>
                   </div>
                 )}
+                
 
                 {/* Article Content */}
                 <div className="prose prose-lg max-w-none">

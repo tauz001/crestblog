@@ -103,7 +103,7 @@ export default function BlogsListingPage() {
     // Fetch new data
     setLoading(true)
 
-    fetch("https://newsdata.io/api/1/latest?apikey=pub_eb680439272c4748b11a38eb03cc9b92&q=politics&language=en")
+    fetch("https://newsdata.io/api/1/latest?apikey=pub_58e0cfe913d04cf7a7d5c77b57b2ecef&q=politics&language=en")
       .then(r => r.json())
       .then(data => {
         if (!mounted) return

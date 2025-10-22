@@ -1,9 +1,10 @@
 "use client"
 import React, {useState, useEffect} from "react"
-import {X, PenSquare, Eye, Plus, Edit2, Trash2, Check, ArrowLeft} from "lucide-react"
+import {X, Eye, Plus, Edit2, Trash2, Check, ArrowLeft} from "lucide-react"
 import {useParams, useRouter} from "next/navigation"
 import {useAuth} from "@/src/context/authContext"
 import Loader from "@/app/components/Loader"
+import ImageUpload from "@/app/components/ImageUpload"
 
 export default function EditPage() {
   const {currentUser, loading: authLoading} = useAuth()
@@ -25,9 +26,12 @@ export default function EditPage() {
   const [article, setArticle] = useState(null)
   const [error, setError] = useState(null)
 
+  // NEW: Image state
+  const [featuredImage, setFeaturedImage] = useState("")
+  const [imageAlt, setImageAlt] = useState("")
+
   const categories = ["Technology", "Lifestyle", "Health", "Travel", "Design", "Business"]
 
-  // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && (!currentUser || currentUser.isAnonymous)) {
       alert("Please login to edit posts")
@@ -35,7 +39,6 @@ export default function EditPage() {
     }
   }, [currentUser, authLoading, router])
 
-  // Fetch the post
   useEffect(() => {
     if (!id || !currentUser || currentUser.isAnonymous) return
 
@@ -43,7 +46,6 @@ export default function EditPage() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          // Check if current user owns this post
           const postAuthorUid = data.data.authorUid || (typeof data.data.author === "object" ? data.data.author.uid : data.data.author)
           if (postAuthorUid !== currentUser.uid) {
             alert("You don't have permission to edit this post")
@@ -58,7 +60,6 @@ export default function EditPage() {
       .catch(err => setError(err.message))
   }, [id, currentUser, router])
 
-  // Populate form when article loads
   useEffect(() => {
     if (!article) return
 
@@ -66,6 +67,8 @@ export default function EditPage() {
     setCategory(article.category || "Technology")
     setSummary(article.summary || "")
     setSavedSections(article.sections || [])
+    setFeaturedImage(article.featuredImage?.url || "")
+    setImageAlt(article.featuredImage?.alt || "")
     setCanAddContent(true)
     setIsLoading(false)
   }, [article])
@@ -134,16 +137,30 @@ export default function EditPage() {
     setIsUpdating(true)
 
     try {
+      const updateData = {
+        title,
+        category,
+        summary,
+        sections: savedSections,
+        tableOfContents: savedSections.map(s => s.subHeading),
+      }
+
+      // Add featured image if present
+      if (featuredImage) {
+        updateData.featuredImage = {
+          url: featuredImage,
+          publicId: article?.featuredImage?.publicId || "",
+          alt: imageAlt || title,
+        }
+      } else {
+        // Remove image if deleted
+        updateData.featuredImage = {url: "", publicId: "", alt: ""}
+      }
+
       const res = await fetch(`/api/publish/${id}`, {
         method: "PUT",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          title,
-          category,
-          summary,
-          sections: savedSections,
-          tableOfContents: savedSections.map(s => s.subHeading),
-        }),
+        body: JSON.stringify(updateData),
       })
 
       const data = await res.json()
@@ -191,12 +208,10 @@ export default function EditPage() {
     }
   }
 
-  // Show loading
   if (authLoading || isLoading) {
     return <Loader />
   }
 
-  // If not authenticated, show nothing (will redirect)
   if (!currentUser || currentUser.isAnonymous) {
     return null
   }
@@ -218,7 +233,6 @@ export default function EditPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          {/* Header Actions */}
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
               <button onClick={() => router.back()} className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">
@@ -242,14 +256,13 @@ export default function EditPage() {
             </div>
           </div>
 
-          {/* Title and Category Section */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Blog Title *</label>
               <input type="text" value={title} onChange={handleTitleChange} placeholder="Enter your blog title..." className="w-full text-2xl font-bold text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
             </div>
 
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select value={category} onChange={e => setCategory(e.target.value)} className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none">
                 {categories.map(cat => (
@@ -260,13 +273,24 @@ export default function EditPage() {
               </select>
             </div>
 
-            <div className="mt-4">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Summary (one line)</label>
               <input type="text" value={summary} onChange={e => setSummary(e.target.value)} placeholder="Write a one-line summary of the blog..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
             </div>
+
+            {/* Featured Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Featured Image (Optional)</label>
+              <ImageUpload value={featuredImage} onChange={url => setFeaturedImage(url)} onRemove={() => setFeaturedImage("")} />
+              {featuredImage && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Image Alt Text</label>
+                  <input type="text" value={imageAlt} onChange={e => setImageAlt(e.target.value)} placeholder="Describe the image for accessibility..." className="w-full text-sm text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Add Content Button */}
           {canAddContent && (
             <div className="mb-6">
               <button onClick={handleAddContent} disabled={showContentForm} className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${showContentForm ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
@@ -276,7 +300,6 @@ export default function EditPage() {
             </div>
           )}
 
-          {/* Content Form */}
           {showContentForm && (
             <div className="bg-white rounded-lg shadow-lg border-2 border-emerald-500 p-6 mb-6">
               <div className="flex justify-between items-center mb-4">
@@ -324,7 +347,6 @@ export default function EditPage() {
             </div>
           )}
 
-          {/* Saved Sections Display */}
           {savedSections.length > 0 && (
             <div className="space-y-4">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Content Sections ({savedSections.length})</h2>
@@ -344,15 +366,6 @@ export default function EditPage() {
                   <p className="text-gray-700 whitespace-pre-wrap">{section.content}</p>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!canAddContent && (
-            <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
-              <PenSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Start Editing Your Blog</h3>
-              <p className="text-gray-500">Enter a title and select a category to begin editing content</p>
             </div>
           )}
         </div>

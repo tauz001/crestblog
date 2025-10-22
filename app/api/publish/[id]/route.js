@@ -1,4 +1,4 @@
-// app/api/publish/[id]/route.js
+// app/api/publish/[id]/route.js - COMPLETE UPDATE WITH IMAGE SUPPORT
 import dbConnect from "@/src/lib/mongoose"
 import Post from "@/src/models/post"
 import User from "@/src/models/user"
@@ -41,6 +41,14 @@ export async function PUT(req, {params}) {
       }
     }
 
+    // Handle featured image update
+    if (body.featuredImage) {
+      // If image URL is empty, remove the image
+      if (!body.featuredImage.url) {
+        body.featuredImage = {url: "", publicId: "", alt: ""}
+      }
+    }
+
     const updatedPost = await Post.findByIdAndUpdate(id, body, {new: true})
 
     if (!updatedPost) {
@@ -72,6 +80,11 @@ export async function DELETE(req, {params}) {
         headers: {"Content-Type": "application/json"},
       })
     }
+
+    // Optional: Delete image from Cloudinary if you want
+    // if (post.featuredImage?.publicId) {
+    //   await cloudinary.uploader.destroy(post.featuredImage.publicId)
+    // }
 
     await Post.findByIdAndDelete(id)
 
