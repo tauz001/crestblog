@@ -4,16 +4,25 @@ import {initializeApp, getApps, getApp} from "firebase/app"
 import {getAnalytics} from "firebase/analytics"
 import {getAuth} from "firebase/auth"
 
+const NEXT_PUBLIC_FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+const NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+const NEXT_PUBLIC_FIREBASE_DATABASE_URL = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
+const NEXT_PUBLIC_FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+const NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+const NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+const NEXT_PUBLIC_FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+const NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID = process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCkM8pNDAaGI4CNoYgd2oOMLVX4b_J8evc",
-  authDomain: "crestblog001.firebaseapp.com",
-  databaseURL: "https://crestblog001-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "crestblog001",
-  storageBucket: "crestblog001.firebasestorage.app",
-  messagingSenderId: "863786997689",
-  appId: "1:863786997689:web:de19088d2b18236ff60868",
-  measurementId: "G-KRY11F9VCQ",
+  apiKey: NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  databaseURL: NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+  projectId: NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
 // --- CORE FIX: Initialize the App only once ---
