@@ -31,6 +31,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Detect package manager
         id: detect-package-manager
         run: |
@@ -48,11 +49,13 @@ jobs:
             echo "Unable to determine package manager"
             exit 1
           fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -61,6 +64,7 @@ jobs:
           #
           # You may remove this line if you want to manage the configuration yourself.
           static_site_generator: next
+
       - name: Restore cache
         uses: actions/cache@v4
         with:
@@ -71,10 +75,56 @@ jobs:
           # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
+
+      - name: Create .env.local from secrets
+        # Map the repository secrets you added into environment variables for this step.
+        # Add or remove secrets below to match the exact secret names you created in the repo.
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_PRIVATE_KEY_B64: ${{ secrets.FIREBASE_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          echo "Creating .env.local from repository secrets (values are not printed)."
+
+          # If a base64-encoded private key is provided (recommended for multiline keys), decode it,
+          # otherwise use the raw FIREBASE_PRIVATE_KEY secret and convert escaped newlines (\n) into real newlines.
+          PRIVATE_KEY=""
+          if [ -n "${FIREBASE_PRIVATE_KEY_B64:-}" ]; then
+            PRIVATE_KEY=$(echo "${FIREBASE_PRIVATE_KEY_B64}" | base64 --decode)
+          else
+            PRIVATE_KEY=$(printf '%b' "${FIREBASE_PRIVATE_KEY:-}")
+          fi
+
+          # Convert real newlines in PRIVATE_KEY into escaped \n sequences for storing in .env.local
+          ESCAPED_PRIVATE_KEY=$(printf '%s' "$PRIVATE_KEY" | awk '{printf "%s\\n", $0}' | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          # Fail fast if required secrets are missing (but do not print them)
+          if [ -z "${MONGODB_URI:-}" ]; then echo "MONGODB_URI missing"; exit 1; fi
+          if [ -z "${NEXT_PUBLIC_FIREBASE_API_KEY:-}" ]; then echo "NEXT_PUBLIC_FIREBASE_API_KEY missing"; exit 1; fi
+          if [ -z "${FIREBASE_CLIENT_EMAIL:-}" ]; then echo "FIREBASE_CLIENT_EMAIL missing"; exit 1; fi
+
+          cat > .env.local <<EOF
+MONGODB_URI=${MONGODB_URI}
+NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}
+FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+FIREBASE_PRIVATE_KEY=${ESCAPED_PRIVATE_KEY}
+EOF
+
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
+
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
